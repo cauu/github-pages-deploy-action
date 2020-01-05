@@ -18,6 +18,9 @@ export const action = {
   gitHubToken: core.getInput("GITHUB_TOKEN"),
   accessToken: core.getInput("ACCESS_TOKEN"),
   branch: core.getInput("BRANCH"),
+  // TARGET_REPO?: string; 
+  // If you wanna push build file to another repo, use target repo
+  targetRepository: core.getInput('TARGET_REPO'),
   targetFolder: core.getInput("TARGET_FOLDER"),
   baseBranch: core.getInput("BASE_BRANCH"),
   defaultBranch: process.env.GITHUB_SHA ? process.env.GITHUB_SHA : "master",
@@ -41,3 +44,8 @@ export const repositoryPath = `https://${action.accessToken ||
   `x-access-token:${action.gitHubToken}`}@github.com/${
   action.gitHubRepository
 }.git`;
+
+export const targetRepositoryPath = action.targetRepository ? `https://${action.accessToken ||
+`x-access-token:${action.gitHubToken}`}@github.com/${
+action.targetRepository
+}.git` : '';

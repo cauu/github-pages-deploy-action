@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import { execute } from "./util";
-import { workspace, action, root, repositoryPath, isTest } from "./constants";
+import { workspace, action, root, repositoryPath, targetRepositoryPath, isTest } from "./constants";
 
 /** Generates the branch if it doesn't exist on the remote.
  * @returns {Promise}
@@ -89,10 +89,14 @@ export async function deploy(): Promise<any> {
   // Checks out the base branch to begin the deployment process.
   await switchToBaseBranch();
   await execute(`git fetch ${repositoryPath}`, workspace);
-  await execute(
-    `git worktree add --checkout ${temporaryDeploymentDirectory} origin/${action.branch}`,
-    workspace
-  );
+  if (targetRepositoryPath) {
+    await execute(`git clone ${targetRepositoryPath} ${temporaryDeploymentDirectory}`, workspace);
+  } else {
+    await execute(
+      `git worktree add --checkout ${temporaryDeploymentDirectory} origin/${action.branch}`,
+      workspace
+    );
+  }
 
   // Ensures that items that need to be excluded from the clean job get parsed.
   let excludes = "";
