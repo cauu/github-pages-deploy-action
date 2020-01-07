@@ -108,7 +108,6 @@ export async function deploy(): Promise<any> {
       Checks to see if the remote exists prior to deploying.
       If the branch doesn't exist it gets created here as an orphan.
     */
-  await execute(`echo use v3 branch ${action.targetRepo}`, workspace)
   if (targetRepositoryPath) {
     await deployToAnotherRepo()
   } else {
