@@ -87,7 +87,7 @@ export async function deployToAnotherRepo(): Promise<any> {
         `git commit --allow-empty -m "Initial ${action.branch} commit."`,
         temporaryDeploymentDirectory
       );
-      await execute(`git push origin ${action.branch}`, temporaryDeploymentDirectory);
+      await execute(`git push --force ${targetRepositoryPath} ${action.branch}`, temporaryDeploymentDirectory);
     } catch (error) {
       core.setFailed(
         `There was an error creating the deployment branch: ${error} on ${action.targetRepo} ❌`
