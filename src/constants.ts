@@ -18,6 +18,7 @@ export const action = {
   gitHubToken: core.getInput("GITHUB_TOKEN"),
   accessToken: core.getInput("ACCESS_TOKEN"),
   branch: core.getInput("BRANCH"),
+  targetRepo: core.getInput("TARGET_REPO"),
   targetFolder: core.getInput("TARGET_FOLDER"),
   baseBranch: core.getInput("BASE_BRANCH"),
   defaultBranch: process.env.GITHUB_SHA ? process.env.GITHUB_SHA : "master",
@@ -41,3 +42,8 @@ export const repositoryPath = `https://${action.accessToken ||
   `x-access-token:${action.gitHubToken}`}@github.com/${
   action.gitHubRepository
 }.git`;
+
+export const targetRepositoryPath = action.targetRepo ? `https://${action.accessToken ||
+`x-access-token:${action.gitHubToken}`}@github.com/${
+action.targetRepo
+}.git` : '';

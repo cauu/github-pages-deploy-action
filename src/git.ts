@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import { execute } from "./util";
-import { workspace, action, root, repositoryPath, isTest } from "./constants";
+import { workspace, action, root, repositoryPath, targetRepositoryPath, isTest } from "./constants";
 
 /** Generates the branch if it doesn't exist on the remote.
  * @returns {Promise}
@@ -67,6 +67,37 @@ export async function generateBranch(): Promise<any> {
   }
 }
 
+export async function deployToAnotherRepo(): Promise<any> {
+  const temporaryDeploymentDirectory = "gh-action-temp-deployment-folder";
+
+  await execute(`git clone ${targetRepositoryPath} ${temporaryDeploymentDirectory}`, workspace)
+
+  const targetRepoBranchExists = await execute(
+    `git ls-remote --heads ${targetRepositoryPath} ${action.branch} | wc -l`,
+    workspace
+  )
+
+  if (!targetRepoBranchExists) {
+    /** Create target branch on target repository */
+    try {
+      console.log("Deployment branch does not exist. Creating....");
+      await execute(`git switch --orphan ${action.branch}`, temporaryDeploymentDirectory)
+      await execute(`git reset --hard`, temporaryDeploymentDirectory);
+      await execute(
+        `git commit --allow-empty -m "Initial ${action.branch} commit."`,
+        temporaryDeploymentDirectory
+      );
+      await execute(`git push ${targetRepositoryPath} ${action.branch}`, temporaryDeploymentDirectory);
+    } catch (error) {
+      core.setFailed(
+        `There was an error creating the deployment branch: ${error} on ${action.targetRepo} ❌`
+      );
+    } finally {
+      return Promise.resolve(`Deployment branch ${action.branch} on ${action.targetRepo} creation step complete... ✅`);
+    }
+  }
+}
+
 /** Runs the necessary steps to make the deployment.
  * @returns {Promise}
  */
@@ -77,22 +108,27 @@ export async function deploy(): Promise<any> {
       Checks to see if the remote exists prior to deploying.
       If the branch doesn't exist it gets created here as an orphan.
     */
-  const branchExists = await execute(
-    `git ls-remote --heads ${repositoryPath} ${action.branch} | wc -l`,
-    workspace
-  );
-  if (!branchExists) {
-    console.log("Deployment branch does not exist. Creating....");
-    await generateBranch();
+  if (targetRepositoryPath) {
+    await deployToAnotherRepo()
+  } else {
+    const branchExists = await execute(
+      `git ls-remote --heads ${repositoryPath} ${action.branch} | wc -l`,
+      workspace
+    );
+    if (!branchExists) {
+      console.log("Deployment branch does not exist. Creating....");
+      await generateBranch();
+    }
+
+    await execute(
+      `git worktree add --checkout ${temporaryDeploymentDirectory} origin/${action.branch}`,
+      workspace
+    );
   }
 
   // Checks out the base branch to begin the deployment process.
   await switchToBaseBranch();
   await execute(`git fetch ${repositoryPath}`, workspace);
-  await execute(
-    `git worktree add --checkout ${temporaryDeploymentDirectory} origin/${action.branch}`,
-    workspace
-  );
 
   // Ensures that items that need to be excluded from the clean job get parsed.
   let excludes = "";
