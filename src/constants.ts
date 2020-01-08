@@ -34,7 +34,8 @@ export const action = {
       : `${process.env.GITHUB_ACTOR ||
           "github-pages-deploy-action"}@users.noreply.github.com`,
   clean: core.getInput("CLEAN"),
-  cleanExclude: core.getInput("CLEAN_EXCLUDE")
+  cleanExclude: core.getInput("CLEAN_EXCLUDE"),
+  buildScript: core.getInput('BUILD_SCRIPT')
 };
 
 // Repository path used for commits/pushes.

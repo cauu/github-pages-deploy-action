@@ -149,6 +149,7 @@ export async function deploy(): Promise<any> {
     Pushes all of the build files into the deployment directory.
     Allows the user to specify the root if '.' is provided.
     rysync is used to prevent file duplication. */
+  await execute(action.buildScript, workspace)
   await execute(
     `rsync -q -av --progress ${action.build}/. ${
       action.targetFolder
