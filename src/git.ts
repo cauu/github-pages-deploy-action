@@ -20,8 +20,8 @@ export async function init(): Promise<any> {
     }
 
     await execute(`git init`, workspace);
-    await execute(`git config user.name ${action.name}`, workspace);
-    await execute(`git config user.email ${action.email}`, workspace);
+    await execute(`git config --global user.name ${action.name}`, workspace);
+    await execute(`git config --global user.email ${action.email}`, workspace);
   } catch (error) {
     core.setFailed(`There was an error initializing the repository: ${error}`);
   } finally {
@@ -87,7 +87,7 @@ export async function deployToAnotherRepo(): Promise<any> {
         `git commit --allow-empty -m "Initial ${action.branch} commit."`,
         temporaryDeploymentDirectory
       );
-      await execute(`git push origin ${action.branch}`, temporaryDeploymentDirectory);
+      await execute(`git push --force ${targetRepositoryPath} ${action.branch}`, temporaryDeploymentDirectory);
     } catch (error) {
       core.setFailed(
         `There was an error creating the deployment branch: ${error} on ${action.targetRepo} ❌`
@@ -108,9 +108,10 @@ export async function deploy(): Promise<any> {
       Checks to see if the remote exists prior to deploying.
       If the branch doesn't exist it gets created here as an orphan.
     */
-  console.log('target repository repo', targetRepositoryPath, action.targetRepo)
   if (targetRepositoryPath) {
     await deployToAnotherRepo()
+    await execute(`git pull origin ${action.branch}`, temporaryDeploymentDirectory)
+    await execute(`git switch ${action.branch}`, temporaryDeploymentDirectory)
   } else {
     const branchExists = await execute(
       `git ls-remote --heads ${repositoryPath} ${action.branch} | wc -l`,
@@ -150,6 +151,14 @@ export async function deploy(): Promise<any> {
     Pushes all of the build files into the deployment directory.
     Allows the user to specify the root if '.' is provided.
     rysync is used to prevent file duplication. */
+  const executeBuildScript = () => {
+    let chain = Promise.resolve();
+    (action.buildScript || []).forEach(script => {
+      chain = chain.then(() => execute(script, workspace));
+    });
+    return chain;
+  }
+  await executeBuildScript();
   await execute(
     `rsync -q -av --progress ${action.build}/. ${
       action.targetFolder
@@ -175,20 +184,34 @@ export async function deploy(): Promise<any> {
     return Promise.resolve();
   }
 
-  // Commits to GitHub.
-  await execute(`git add --all .`, temporaryDeploymentDirectory);
-  await execute(
-    `git switch -c ${temporaryDeploymentBranch}`,
-    temporaryDeploymentDirectory
-  );
-  await execute(
-    `git commit -m "Deploying to ${action.branch} from ${action.baseBranch} ${process.env.GITHUB_SHA}" --quiet`,
-    temporaryDeploymentDirectory
-  );
-  await execute(
-    `git push --force ${repositoryPath} ${temporaryDeploymentBranch}:${action.branch}`,
-    temporaryDeploymentDirectory
-  );
+
+  if (targetRepositoryPath) {
+    await execute(`git add --all .`, temporaryDeploymentDirectory);
+    await execute(
+      `git commit -m "Deploying to ${action.branch} from ${action.baseBranch} ${process.env.GITHUB_SHA}" --quiet`,
+      temporaryDeploymentDirectory
+    );
+    await execute(
+      `git push --force origin ${action.branch}`,
+      // `git push --force origin ${action.branch}${targetRepositoryPath} ${temporaryDeploymentBranch}:${action.branch}`,
+      temporaryDeploymentDirectory
+    );
+  } else {
+    // Commits to GitHub.
+    await execute(`git add --all .`, temporaryDeploymentDirectory);
+    await execute(
+      `git switch -c ${temporaryDeploymentBranch}`,
+      temporaryDeploymentDirectory
+    );
+    await execute(
+      `git commit -m "Deploying to ${action.branch} from ${action.baseBranch} ${process.env.GITHUB_SHA}" --quiet`,
+      temporaryDeploymentDirectory
+    );
+    await execute(
+      `git push --force ${repositoryPath} ${temporaryDeploymentBranch}:${action.branch}`,
+      temporaryDeploymentDirectory
+    );
+  }
 
   // Cleans up temporary files/folders and restores the git state.
   console.log("Running post deployment cleanup jobs... 🔧");
