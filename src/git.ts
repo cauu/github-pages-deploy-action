@@ -110,6 +110,8 @@ export async function deploy(): Promise<any> {
     */
   if (targetRepositoryPath) {
     await deployToAnotherRepo()
+    await execute(`git pull origin ${action.branch}`, temporaryDeploymentDirectory)
+    await execute(`git switch ${action.branch}`, temporaryDeploymentDirectory)
   } else {
     const branchExists = await execute(
       `git ls-remote --heads ${repositoryPath} ${action.branch} | wc -l`,
@@ -182,22 +184,29 @@ export async function deploy(): Promise<any> {
     return Promise.resolve();
   }
 
-  // Commits to GitHub.
-  await execute(`git add --all .`, temporaryDeploymentDirectory);
-  await execute(
-    `git switch -c ${temporaryDeploymentBranch}`,
-    temporaryDeploymentDirectory
-  );
-  await execute(
-    `git commit -m "Deploying to ${action.branch} from ${action.baseBranch} ${process.env.GITHUB_SHA}" --quiet`,
-    temporaryDeploymentDirectory
-  );
+
   if (targetRepositoryPath) {
+    await execute(`git add --all .`, temporaryDeploymentDirectory);
     await execute(
-      `git push --force ${targetRepositoryPath} ${temporaryDeploymentBranch}:${action.branch}`,
+      `git commit -m "Deploying to ${action.branch} from ${action.baseBranch} ${process.env.GITHUB_SHA}" --quiet`,
+      temporaryDeploymentDirectory
+    );
+    await execute(
+      `git push --force origin ${action.branch}`,
+      // `git push --force origin ${action.branch}${targetRepositoryPath} ${temporaryDeploymentBranch}:${action.branch}`,
       temporaryDeploymentDirectory
     );
   } else {
+    // Commits to GitHub.
+    await execute(`git add --all .`, temporaryDeploymentDirectory);
+    await execute(
+      `git switch -c ${temporaryDeploymentBranch}`,
+      temporaryDeploymentDirectory
+    );
+    await execute(
+      `git commit -m "Deploying to ${action.branch} from ${action.baseBranch} ${process.env.GITHUB_SHA}" --quiet`,
+      temporaryDeploymentDirectory
+    );
     await execute(
       `git push --force ${repositoryPath} ${temporaryDeploymentBranch}:${action.branch}`,
       temporaryDeploymentDirectory
