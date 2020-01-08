@@ -192,10 +192,17 @@ export async function deploy(): Promise<any> {
     `git commit -m "Deploying to ${action.branch} from ${action.baseBranch} ${process.env.GITHUB_SHA}" --quiet`,
     temporaryDeploymentDirectory
   );
-  await execute(
-    `git push --force ${repositoryPath} ${temporaryDeploymentBranch}:${action.branch}`,
-    temporaryDeploymentDirectory
-  );
+  if (targetRepositoryPath) {
+    await execute(
+      `git push --force ${targetRepositoryPath} ${temporaryDeploymentBranch}:${action.branch}`,
+      temporaryDeploymentDirectory
+    );
+  } else {
+    await execute(
+      `git push --force ${repositoryPath} ${temporaryDeploymentBranch}:${action.branch}`,
+      temporaryDeploymentDirectory
+    );
+  }
 
   // Cleans up temporary files/folders and restores the git state.
   console.log("Running post deployment cleanup jobs... 🔧");
